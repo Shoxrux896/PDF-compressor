@@ -1,4 +1,4 @@
-export type Language = 'en' | 'ru';
+export type Language = 'en' | 'ru' | 'uz';
 
 export const translations = {
     en: {
@@ -63,6 +63,38 @@ export const translations = {
             none: "Без полей",
             small: "Малые",
             normal: "Обычные"
+        }
+    },
+    uz: {
+        title: "PDF-ga konvertatsiya qiluvchi",
+        subtitle: "Rasmlarni yuqori sifatli PDF faylga siqish va konvertatsiya qilish.",
+        reset: "Qayta tiklash",
+        uploadTitle: "Yuklash uchun bosing",
+        uploadHint: "yoki fayllarni shu yerga sudrab olib keling",
+        addMore: "Rasm qo'shish",
+        dragReorder: "Tartiblash uchun sudrab olib boring",
+        settingsTitle: "PDF sozlamalari",
+        pageSize: "Sahifa o‘lchami",
+        orientation: "Yo‘nalish",
+        margins: "Chegaralar",
+        exportTitle: "Eksport",
+        quality: "Sifat",
+        filename: "Fayl nomi",
+        convert: "PDF yaratish ({{count}} sahifa)",
+        selectFirst: "Rasmlarni tanlang",
+        format: {
+            a4: "A4",
+            letter: "Letter",
+            auto: "Avto (O‘lchamga mos)"
+        },
+        orient: {
+            portrait: "Vertikal",
+            landscape: "Gorizontal"
+        },
+        margin: {
+            none: "Chegarasiz",
+            small: "Kichik",
+            normal: "O‘rtacha"
         }
     }
 }

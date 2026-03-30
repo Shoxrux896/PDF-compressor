@@ -1,0 +1,23 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Deny everything by default
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Anyone can write events (analytics logging from the app)
+    match /events/{doc} {
+      allow create: if true;
+      // Temporarily allow public read for Admin panel until Auth is implemented
+      allow read: if true;
+    }
+
+    // Stats doc is updated by users (increment) and read by Admin
+    match /stats/{doc} {
+      allow read, write: if true;
+    }
+  }
+}

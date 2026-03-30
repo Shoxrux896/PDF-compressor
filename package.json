@@ -14,9 +14,11 @@
     "@dnd-kit/sortable": "^10.0.0",
     "@dnd-kit/utilities": "^3.2.2",
     "browser-image-compression": "^2.0.2",
+    "firebase": "^12.6.0",
     "pdf-lib": "^1.17.1",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
+    "react-router-dom": "^7.10.1",
     "vite-plugin-pwa": "^1.2.0"
   },
   "devDependencies": {

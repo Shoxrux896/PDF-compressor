@@ -29,4 +29,19 @@ export default defineConfig({
       }
     })
   ],
+  build: {
+    target: 'esnext',
+    sourcemap: false,
+    chunkSizeWarningLimit: 600,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'vendor-react': ['react', 'react-dom', 'react-router-dom'],
+          'vendor-firebase': ['firebase/app', 'firebase/firestore', 'firebase/analytics'],
+          'vendor-pdf': ['pdf-lib'],
+          'vendor-ui': ['@dnd-kit/core', '@dnd-kit/sortable', '@dnd-kit/utilities', 'browser-image-compression']
+        }
+      }
+    }
+  }
 })

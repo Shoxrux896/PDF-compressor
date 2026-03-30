@@ -1,4 +1,5 @@
 
+import { memo } from 'react'
 import {
     DndContext,
     closestCenter,
@@ -20,18 +21,20 @@ import { CSS } from '@dnd-kit/utilities'
 export interface SortableFile {
     id: string
     file: File
+    preview: string
     rotation: number
 }
 
 interface SortableItemProps {
     id: string
     file: File
+    preview: string
     rotation: number
     onRemove: (id: string) => void
     onRotate: (id: string) => void
 }
 
-function SortableItem({ id, file, rotation, onRemove, onRotate }: SortableItemProps) {
+function SortableItem({ id, file, preview, rotation, onRemove, onRotate }: SortableItemProps) {
     const {
         attributes,
         listeners,
@@ -55,10 +58,11 @@ function SortableItem({ id, file, rotation, onRemove, onRotate }: SortableItemPr
         >
             <div className="img-preview">
                 <img
-                    src={URL.createObjectURL(file)}
+                    src={preview}
                     alt={file.name}
                     style={{ transform: `rotate(${rotation}deg)` }}
-                    onLoad={(e) => URL.revokeObjectURL(e.currentTarget.src)}
+                    decoding="async"
+                    loading="lazy"
                 />
             </div>
 
@@ -91,6 +95,8 @@ function SortableItem({ id, file, rotation, onRemove, onRotate }: SortableItemPr
     )
 }
 
+const MemoSortableItem = memo(SortableItem)
+
 interface GridProps {
     items: SortableFile[]
     onReorder: (items: SortableFile[]) => void
@@ -100,7 +106,9 @@ interface GridProps {
 
 export function SortableImageGrid({ items, onReorder, onRemove, onRotate }: GridProps) {
     const sensors = useSensors(
-        useSensor(PointerSensor),
+        useSensor(PointerSensor, {
+            activationConstraint: { distance: 8 },
+        }),
         useSensor(KeyboardSensor, {
             coordinateGetter: sortableKeyboardCoordinates,
         })
@@ -128,10 +136,11 @@ export function SortableImageGrid({ items, onReorder, onRemove, onRotate }: Grid
             >
                 <div className="image-grid">
                     {items.map((item) => (
-                        <SortableItem
+                        <MemoSortableItem
                             key={item.id}
                             id={item.id}
                             file={item.file}
+                            preview={item.preview}
                             rotation={item.rotation}
                             onRemove={onRemove}
                             onRotate={onRotate}

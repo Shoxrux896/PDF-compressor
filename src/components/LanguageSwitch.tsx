@@ -12,7 +12,7 @@ export function LanguageSwitch({ lang, onToggle }: Props) {
             onClick={onToggle}
             aria-label="Toggle language"
         >
-            {lang === 'en' ? 'RU' : 'EN'}
+            {lang === 'en' ? 'RU' : (lang === 'ru' ? 'UZ' : 'EN')}
         </button>
     )
 }
