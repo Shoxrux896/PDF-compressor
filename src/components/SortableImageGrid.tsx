@@ -17,6 +17,7 @@ import {
     useSortable
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
+import { translations, type Language } from '../i18n/translations'
 
 export interface SortableFile {
     id: string
@@ -32,9 +33,13 @@ interface SortableItemProps {
     rotation: number
     onRemove: (id: string) => void
     onRotate: (id: string) => void
+    isSelected: boolean
+    onSelect: (id: string) => void
+    lang: Language
 }
 
-function SortableItem({ id, file, preview, rotation, onRemove, onRotate }: SortableItemProps) {
+function SortableItem({ id, file, preview, rotation, onRemove, onRotate, isSelected, onSelect, lang }: SortableItemProps) {
+    const t = translations[lang]
     const {
         attributes,
         listeners,
@@ -54,7 +59,17 @@ function SortableItem({ id, file, preview, rotation, onRemove, onRotate }: Sorta
             style={style}
             {...attributes}
             {...listeners}
-            className="sortable-item"
+            className={`sortable-item ${isSelected ? 'selected' : ''}`}
+            onClick={() => onSelect(id)}
+            role="listitem"
+            aria-selected={isSelected}
+            tabIndex={0}
+            onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault()
+                    onSelect(id)
+                }
+            }}
         >
             <div className="img-preview">
                 <img
@@ -74,7 +89,8 @@ function SortableItem({ id, file, preview, rotation, onRemove, onRotate }: Sorta
                         onRotate(id)
                     }}
                     onPointerDown={(e) => e.stopPropagation()}
-                    title="Rotate 90°"
+                    title={`${t.rotate} 90°`}
+                    aria-label={`${t.rotate} ${file.name}`}
                 >
                     ↻
                 </button>
@@ -85,12 +101,14 @@ function SortableItem({ id, file, preview, rotation, onRemove, onRotate }: Sorta
                         onRemove(id)
                     }}
                     onPointerDown={(e) => e.stopPropagation()}
-                    title="Remove"
+                    title={t.delete}
+                    aria-label={`${t.delete} ${file.name}`}
                 >
                     ×
                 </button>
             </div>
             <span className="file-name">{file.name}</span>
+            {isSelected && <div className="selection-indicator" />}
         </div>
     )
 }
@@ -102,9 +120,12 @@ interface GridProps {
     onReorder: (items: SortableFile[]) => void
     onRemove: (id: string) => void
     onRotate: (id: string) => void
+    selectedId: string | null
+    onSelect: (id: string) => void
+    lang: Language
 }
 
-export function SortableImageGrid({ items, onReorder, onRemove, onRotate }: GridProps) {
+export function SortableImageGrid({ items, onReorder, onRemove, onRotate, selectedId, onSelect, lang }: GridProps) {
     const sensors = useSensors(
         useSensor(PointerSensor, {
             activationConstraint: { distance: 8 },
@@ -134,7 +155,7 @@ export function SortableImageGrid({ items, onReorder, onRemove, onRotate }: Grid
                 items={items.map(i => i.id)}
                 strategy={rectSortingStrategy}
             >
-                <div className="image-grid">
+                <div className="image-grid" role="list" aria-label="Image list">
                     {items.map((item) => (
                         <MemoSortableItem
                             key={item.id}
@@ -144,6 +165,9 @@ export function SortableImageGrid({ items, onReorder, onRemove, onRotate }: Grid
                             rotation={item.rotation}
                             onRemove={onRemove}
                             onRotate={onRotate}
+                            isSelected={selectedId === item.id}
+                            onSelect={onSelect}
+                            lang={lang}
                         />
                     ))}
                 </div>

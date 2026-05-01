@@ -21,6 +21,7 @@ export function Home({ theme, lang, onToggleTheme, onToggleLang }: HomeProps) {
     const [progress, setProgress] = useState<number | null>(null)
     const [convertError, setConvertError] = useState<string | null>(null)
     const [filename, setFilename] = useState("compressed")
+    const [selectedId, setSelectedId] = useState<string | null>(null)
     const [options, setOptions] = useState<PdfOptions>({
         pageSize: 'a4',
         orientation: 'portrait',
@@ -28,6 +29,7 @@ export function Home({ theme, lang, onToggleTheme, onToggleLang }: HomeProps) {
     })
 
     const t = translations[lang]
+    const gridRef = useRef<HTMLDivElement>(null)
 
     // Analytics: Log visit on mount
     useEffect(() => {
@@ -44,6 +46,65 @@ export function Home({ theme, lang, onToggleTheme, onToggleLang }: HomeProps) {
             itemsRef.current.forEach(item => URL.revokeObjectURL(item.preview));
         }
     }, []);
+
+    // Keyboard shortcuts
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            // Don't trigger shortcuts when typing in input fields
+            if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
+                return;
+            }
+
+            // Delete/Backspace to remove selected image
+            if ((e.key === 'Delete' || e.key === 'Backspace') && selectedId) {
+                e.preventDefault();
+                handleRemove(selectedId);
+                setSelectedId(null);
+                return;
+            }
+
+            // R to rotate selected image
+            if (e.key === 'r' || e.key === 'R') {
+                e.preventDefault();
+                if (selectedId) {
+                    handleRotate(selectedId);
+                } else if (items.length > 0) {
+                    // Rotate last item if nothing selected
+                    handleRotate(items[items.length - 1].id);
+                }
+                return;
+            }
+
+            // Ctrl+Enter to convert
+            if (e.ctrlKey && e.key === 'Enter') {
+                e.preventDefault();
+                if (items.length > 0) {
+                    handleConvert();
+                }
+                return;
+            }
+
+            // Arrow keys to navigate selection
+            if (selectedId && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
+                e.preventDefault();
+                const currentIndex = items.findIndex(item => item.id === selectedId);
+                if (currentIndex !== -1) {
+                    const newIndex = e.key === 'ArrowLeft' 
+                        ? Math.max(0, currentIndex - 1)
+                        : Math.min(items.length - 1, currentIndex + 1);
+                    setSelectedId(items[newIndex].id);
+                }
+            }
+
+            // Escape to clear selection
+            if (e.key === 'Escape') {
+                setSelectedId(null);
+            }
+        };
+
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [selectedId, items, handleRemove, handleRotate]);
 
     const handleSelect = async (newFiles: File[]) => {
         // Process thumbnails asynchronously
@@ -147,6 +208,9 @@ export function Home({ theme, lang, onToggleTheme, onToggleLang }: HomeProps) {
                             onReorder={setItems}
                             onRemove={handleRemove}
                             onRotate={handleRotate}
+                            selectedId={selectedId}
+                            onSelect={setSelectedId}
+                            lang={lang}
                         />
                         <div className="add-more-container">
                             <small>{t.dragReorder} • </small>
@@ -163,6 +227,11 @@ export function Home({ theme, lang, onToggleTheme, onToggleLang }: HomeProps) {
                                     style={{ display: 'none' }}
                                 />
                             </label>
+                        </div>
+                        <div className="shortcuts-hint">
+                            <small>
+                                <strong>{t.shortcuts}:</strong> {t.shortcutDelete} | {t.shortcutRotate} | {t.shortcutConvert}
+                            </small>
                         </div>
                     </>
                 )}

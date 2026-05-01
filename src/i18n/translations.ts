@@ -18,6 +18,12 @@ export const translations = {
         filename: "Filename",
         convert: "Convert {{count}} Images",
         selectFirst: "Select Images First",
+        delete: "Delete",
+        rotate: "Rotate",
+        shortcuts: "Keyboard Shortcuts",
+        shortcutDelete: "Press Delete or Backspace to remove selected image",
+        shortcutRotate: "Press R to rotate image",
+        shortcutConvert: "Press Ctrl+Enter to convert to PDF",
         format: {
             a4: "A4",
             letter: "Letter",
@@ -50,6 +56,12 @@ export const translations = {
         filename: "Имя файла",
         convert: "Создать PDF ({{count}} стр.)",
         selectFirst: "Выберите изображения",
+        delete: "Удалить",
+        rotate: "Повернуть",
+        shortcuts: "Горячие клавиши",
+        shortcutDelete: "Нажмите Delete или Backspace для удаления",
+        shortcutRotate: "Нажмите R для поворота",
+        shortcutConvert: "Нажмите Ctrl+Enter для создания PDF",
         format: {
             a4: "A4",
             letter: "Letter",
@@ -74,18 +86,24 @@ export const translations = {
         addMore: "Rasm qo'shish",
         dragReorder: "Tartiblash uchun sudrab olib boring",
         settingsTitle: "PDF sozlamalari",
-        pageSize: "Sahifa o‘lchami",
-        orientation: "Yo‘nalish",
+        pageSize: "Sahifa o'lchami",
+        orientation: "Yo'nalish",
         margins: "Chegaralar",
         exportTitle: "Eksport",
         quality: "Sifat",
         filename: "Fayl nomi",
         convert: "PDF yaratish ({{count}} sahifa)",
         selectFirst: "Rasmlarni tanlang",
+        delete: "O'chirish",
+        rotate: "Burish",
+        shortcuts: "Tezkor tugmalar",
+        shortcutDelete: "O'chirish uchun Delete yoki Backspace ni bosing",
+        shortcutRotate: "Burish uchun R ni bosing",
+        shortcutConvert: "PDF yaratish uchun Ctrl+Enter ni bosing",
         format: {
             a4: "A4",
             letter: "Letter",
-            auto: "Avto (O‘lchamga mos)"
+            auto: "Avto (O'lchamga mos)"
         },
         orient: {
             portrait: "Vertikal",
@@ -94,7 +112,7 @@ export const translations = {
         margin: {
             none: "Chegarasiz",
             small: "Kichik",
-            normal: "O‘rtacha"
+            normal: "O'rtacha"
         }
     }
 }
