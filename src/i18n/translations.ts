@@ -37,7 +37,8 @@ export const translations = {
             none: "None",
             small: "Small",
             normal: "Normal"
-        }
+        },
+        autoCrop: "Auto-crop white edges"
     },
     ru: {
         title: "Конвертер в PDF",
@@ -75,7 +76,8 @@ export const translations = {
             none: "Без полей",
             small: "Малые",
             normal: "Обычные"
-        }
+        },
+        autoCrop: "Авто-обрезка белых краев"
     },
     uz: {
         title: "PDF-ga konvertatsiya qiluvchi",
@@ -113,6 +115,7 @@ export const translations = {
             none: "Chegarasiz",
             small: "Kichik",
             normal: "O'rtacha"
-        }
+        },
+        autoCrop: "Oq chegaralarni avto-kesish"
     }
 }

@@ -25,7 +25,8 @@ export function Home({ theme, lang, onToggleTheme, onToggleLang }: HomeProps) {
     const [options, setOptions] = useState<PdfOptions>({
         pageSize: 'a4',
         orientation: 'portrait',
-        margin: 'small'
+        margin: 'small',
+        autoCrop: true
     })
 
     const t = translations[lang]
@@ -146,7 +147,7 @@ export function Home({ theme, lang, onToggleTheme, onToggleLang }: HomeProps) {
         setQuality(70)
         setProgress(null)
         setFilename("compressed")
-        setOptions({ pageSize: 'a4', orientation: 'portrait', margin: 'small' })
+        setOptions({ pageSize: 'a4', orientation: 'portrait', margin: 'small', autoCrop: true })
     }, [])
 
     async function handleConvert() {
@@ -275,6 +276,15 @@ export function Home({ theme, lang, onToggleTheme, onToggleLang }: HomeProps) {
                                     <option value="small">{t.margin.small}</option>
                                     <option value="normal">{t.margin.normal}</option>
                                 </select>
+                            </label>
+
+                            <label className="checkbox-label">
+                                <input
+                                    type="checkbox"
+                                    checked={options.autoCrop}
+                                    onChange={e => setOptions({ ...options, autoCrop: e.target.checked })}
+                                />
+                                <span>{t.autoCrop}</span>
                             </label>
                         </div>
                     </div>
