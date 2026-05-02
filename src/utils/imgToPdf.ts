@@ -1,10 +1,12 @@
 import imageCompression from "browser-image-compression"
 import { PDFDocument, PageSizes, degrees } from "pdf-lib"
+import { autoCropCanvas } from "./autoCrop"
 
 export interface PdfOptions {
   pageSize: 'a4' | 'letter' | 'auto'
   orientation: 'portrait' | 'landscape'
   margin: 'none' | 'small' | 'normal'
+  autoCrop: boolean
 }
 
 export interface PdfImageItem {
@@ -43,7 +45,30 @@ export async function imgToPdf(
   // Phase 2: Embed images and build PDF pages sequentially (pdf-lib requires this)
   for (let i = 0; i < items.length; i++) {
     const { rotation } = items[i]
-    const compressed = compressedFiles[i]
+    let compressed = compressedFiles[i]
+
+    // Auto-crop white edges if enabled
+    if (options.autoCrop) {
+      try {
+        const imgBitmap = await createImageBitmap(compressed)
+        const canvas = document.createElement('canvas')
+        canvas.width = imgBitmap.width
+        canvas.height = imgBitmap.height
+        const ctx = canvas.getContext('2d')
+        if (ctx) {
+          ctx.drawImage(imgBitmap, 0, 0)
+          const croppedCanvas = autoCropCanvas(canvas, 240, 2)
+          const croppedBlob = await new Promise<Blob | null>(resolve => 
+            croppedCanvas.toBlob(resolve, compressed.type)
+          )
+          if (croppedBlob) {
+            compressed = new File([croppedBlob], compressed.name, { type: compressed.type })
+          }
+        }
+      } catch (err) {
+        console.warn('Auto-crop failed, using original image:', err)
+      }
+    }
 
     const buffer = await compressed.arrayBuffer()
     let image
