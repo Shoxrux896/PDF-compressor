@@ -1,12 +1,10 @@
-
-import { useState, useEffect, useRef, useCallback } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { FileUploader } from "../components/FileUploader"
 import { SortableImageGrid, type SortableFile } from "../components/SortableImageGrid"
 import { imgToPdf, type PdfOptions } from "../utils/imgToPdf"
 import { translations, type Language } from "../i18n/translations"
 import { ThemeToggle } from "../components/ThemeToggle"
 import { LanguageSwitch } from "../components/LanguageSwitch"
-import { logVisit, logAction } from "../utils/analytics"
 import { createThumbnail } from "../utils/imageUtils"
 
 interface HomeProps {
@@ -16,13 +14,22 @@ interface HomeProps {
     onToggleLang: () => void
 }
 
+interface SavedSession {
+    settings: PdfOptions
+    quality: number
+    filename: string
+    fileNames: string[]
+}
+
 export function Home({ theme, lang, onToggleTheme, onToggleLang }: HomeProps) {
     const [items, setItems] = useState<SortableFile[]>([])
+    const [selectedId, setSelectedId] = useState<string | null>(null)
     const [quality, setQuality] = useState(70)
     const [progress, setProgress] = useState<number | null>(null)
     const [convertError, setConvertError] = useState<string | null>(null)
     const [filename, setFilename] = useState("compressed")
-    const [selectedId, setSelectedId] = useState<string | null>(null)
+    const [isConverting, setIsConverting] = useState(false)
+
     const [options, setOptions] = useState<PdfOptions>({
         pageSize: 'a4',
         orientation: 'portrait',
@@ -31,44 +38,67 @@ export function Home({ theme, lang, onToggleTheme, onToggleLang }: HomeProps) {
     })
 
     const t = translations[lang]
-    
-    // Refs для доступа к функциям внутри useEffect без проблем инициализации
-    const itemsRef = useRef(items)
-    const selectedIdRef = useRef(selectedId)
-    const optionsRef = useRef(options)
-    const qualityRef = useRef(quality)
-    const filenameRef = useRef(filename)
 
-    // Обновляем ref при изменении стейта
-    useEffect(() => { itemsRef.current = items }, [items])
-    useEffect(() => { selectedIdRef.current = selectedId }, [selectedId])
-    useEffect(() => { optionsRef.current = options }, [options])
-    useEffect(() => { qualityRef.current = quality }, [quality])
-    useEffect(() => { filenameRef.current = filename }, [filename])
-
-    // Analytics
-    useEffect(() => { logVisit() }, [])
-
-    // Cleanup
     useEffect(() => {
-        return () => {
-            itemsRef.current.forEach(item => URL.revokeObjectURL(item.preview))
+        const saved = localStorage.getItem('pdf-compressor-session')
+        if (saved) {
+            try {
+                const session: SavedSession = JSON.parse(saved)
+                setOptions(session.settings)
+                setQuality(session.quality)
+                setFilename(session.filename)
+            } catch (e) {
+                console.error("Failed to load session", e)
+            }
         }
     }, [])
 
-    // Функции теперь объявлены сразу
+    useEffect(() => {
+        const session: SavedSession = {
+            settings: options,
+            quality,
+            filename,
+            fileNames: items.map(i => i.file.name)
+        }
+        localStorage.setItem('pdf-compressor-session', JSON.stringify(session))
+    }, [options, quality, filename, items])
+
+    useEffect(() => {
+        return () => {
+            items.forEach(item => URL.revokeObjectURL(item.preview))
+        }
+    }, [items])
+
+    const handleSelect = async (newFiles: File[]) => {
+        const newItemsPromises = newFiles.map(async (f) => ({
+            id: crypto.randomUUID(),
+            file: f,
+            preview: await createThumbnail(f),
+            rotation: 0
+        }))
+        const newItems = await Promise.all(newItemsPromises)
+        setItems(prev => [...prev, ...newItems])
+        if (navigator.vibrate) navigator.vibrate(50)
+    }
+
     const handleRemove = useCallback((id: string) => {
         setItems(prev => {
             const item = prev.find(i => i.id === id)
             if (item) URL.revokeObjectURL(item.preview)
             return prev.filter(item => item.id !== id)
         })
+        setSelectedId(prev => (prev === id ? null : prev))
+        if (navigator.vibrate) navigator.vibrate(10)
     }, [])
 
     const handleRotate = useCallback((id: string) => {
-        setItems(prev => prev.map(item => 
-            item.id === id ? { ...item, rotation: (item.rotation + 90) % 360 } : item
-        ))
+        setItems(prev => prev.map(item => {
+            if (item.id === id) {
+                return { ...item, rotation: (item.rotation + 90) % 360 }
+            }
+            return item
+        }))
+        if (navigator.vibrate) navigator.vibrate(10)
     }, [])
 
     const handleReset = useCallback(() => {
@@ -76,124 +106,55 @@ export function Home({ theme, lang, onToggleTheme, onToggleLang }: HomeProps) {
             prev.forEach(item => URL.revokeObjectURL(item.preview))
             return []
         })
-        setQuality(70)
+        setSelectedId(null)
         setProgress(null)
-        setFilename("compressed")
-        setOptions({ pageSize: 'a4', orientation: 'portrait', margin: 'small', autoCrop: true })
+        setConvertError(null)
+        setIsConverting(false)
     }, [])
 
-    const handleSelect = async (newFiles: File[]) => {
-        const newItems = await Promise.all(newFiles.map(async (f) => ({
-            id: crypto.randomUUID(),
-            file: f,
-            preview: await createThumbnail(f),
-            rotation: 0
-        })))
-        setItems(prev => [...prev, ...newItems])
-        logAction('upload', { count: newFiles.length })
-    }
+    const clearSelection = () => setSelectedId(null)
 
-    const handleConvert = useCallback(async () => {
-        const currentItems = itemsRef.current
-        if (!currentItems.length) return
-
+    async function handleConvert() {
+        if (!items.length) return
+        setIsConverting(true)
         setProgress(0)
         setConvertError(null)
-        logAction('convert', { 
-            count: currentItems.length, 
-            quality: qualityRef.current, 
-            options: optionsRef.current 
-        })
 
         try {
-            const pdfBytes = await imgToPdf(
-                currentItems, 
-                qualityRef.current, 
-                optionsRef.current, 
-                (p) => setProgress(p)
-            )
+            const pdfBytes = await imgToPdf(items, quality, options, (p) => setProgress(p))
             const blob = new Blob([pdfBytes.slice(0)], { type: "application/pdf" })
             const objectUrl = URL.createObjectURL(blob)
+
             const link = document.createElement("a")
             link.href = objectUrl
-            link.download = `${filenameRef.current || 'compressed'}.pdf`
+            link.download = `${filename || 'compressed'}.pdf`
             document.body.appendChild(link)
             link.click()
             document.body.removeChild(link)
             URL.revokeObjectURL(objectUrl)
+
+            if (navigator.vibrate) navigator.vibrate([50, 50, 50])
         } catch (err) {
             console.error('Conversion failed:', err)
             setConvertError('Conversion failed. Please try again.')
         } finally {
             setProgress(null)
+            setIsConverting(false)
         }
-    }, [])
-
-    // Keyboard shortcuts - используем ref вместо замыкания
-    useEffect(() => {
-        const handleKeyDown = (e: KeyboardEvent) => {
-            if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return
-
-            const currentSelected = selectedIdRef.current
-            const currentItems = itemsRef.current
-
-            if ((e.key === 'Delete' || e.key === 'Backspace') && currentSelected) {
-                e.preventDefault()
-                handleRemove(currentSelected)
-                setSelectedId(null)
-                return
-            }
-
-            if (e.key === 'r' || e.key === 'R') {
-                e.preventDefault()
-                if (currentSelected) {
-                    handleRotate(currentSelected)
-                } else if (currentItems.length > 0) {
-                    handleRotate(currentItems[currentItems.length - 1].id)
-                }
-                return
-            }
-
-            if (e.ctrlKey && e.key === 'Enter') {
-                e.preventDefault()
-                if (currentItems.length > 0) {
-                    handleConvert()
-                }
-                return
-            }
-
-            if (currentSelected && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
-                e.preventDefault()
-                const currentIndex = currentItems.findIndex(item => item.id === currentSelected)
-                if (currentIndex !== -1) {
-                    const newIndex = e.key === 'ArrowLeft' 
-                        ? Math.max(0, currentIndex - 1)
-                        : Math.min(currentItems.length - 1, currentIndex + 1)
-                    setSelectedId(currentItems[newIndex].id)
-                }
-            }
-
-            if (e.key === 'Escape') {
-                setSelectedId(null)
-            }
-        }
-
-        window.addEventListener('keydown', handleKeyDown)
-        return () => window.removeEventListener('keydown', handleKeyDown)
-    }, [handleRemove, handleRotate, handleConvert]) // Теперь зависимости стабильны
+    }
 
     return (
         <>
-            <div className="top-nav" style={{ width: '100%', display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', marginBottom: '1rem' }}>
+            <div className="top-nav">
                 <ThemeToggle theme={theme} onToggle={onToggleTheme} />
                 <LanguageSwitch lang={lang} onToggle={onToggleLang} />
             </div>
 
-            <div className="header-actions" style={{ justifyContent: 'center', position: 'relative' }}>
+            <div className="header-actions">
                 <h1>{t.title}</h1>
                 {items.length > 0 && (
-                    <button className="reset-btn" onClick={handleReset} style={{ position: 'absolute', right: 0 }}>
-                        ↺ {t.reset}
+                    <button className="reset-btn" onClick={handleReset}>
+                        ? {t.reset}
                     </button>
                 )}
             </div>
@@ -205,6 +166,22 @@ export function Home({ theme, lang, onToggleTheme, onToggleLang }: HomeProps) {
                     <FileUploader onSelect={handleSelect} lang={lang} />
                 ) : (
                     <>
+                        <div className="toolbar">
+                            <div className="selection-info">
+                                {selectedId ? `${t.selected}` : `${items.length} image${items.length === 1 ? '' : 's'}`}
+                            </div>
+                            {selectedId && (
+                                <div className="toolbar-actions">
+                                    <button onClick={clearSelection} className="tool-btn">
+                                        {t.clear}
+                                    </button>
+                                    <button onClick={() => handleRemove(selectedId)} className="tool-btn danger">
+                                        ?? {t.delete}
+                                    </button>
+                                </div>
+                            )}
+                        </div>
+
                         <SortableImageGrid
                             items={items}
                             onReorder={setItems}
@@ -214,10 +191,10 @@ export function Home({ theme, lang, onToggleTheme, onToggleLang }: HomeProps) {
                             onSelect={setSelectedId}
                             lang={lang}
                         />
+
                         <div className="add-more-container">
-                            <small>{t.dragReorder} • </small>
                             <label className="add-more-label">
-                                {t.addMore}
+                                + {t.addMore}
                                 <input
                                     type="file"
                                     multiple
@@ -226,13 +203,13 @@ export function Home({ theme, lang, onToggleTheme, onToggleLang }: HomeProps) {
                                         if (e.target.files) handleSelect(Array.from(e.target.files))
                                         e.target.value = ''
                                     }}
-                                    style={{ display: 'none' }}
                                 />
                             </label>
                         </div>
+
                         <div className="shortcuts-hint">
                             <small>
-                                <strong>{t.shortcuts}:</strong> {t.shortcutDelete} | {t.shortcutRotate} | {t.shortcutConvert}
+                                <strong>{t.shortcuts}:</strong> {t.shortcutDelete} � {t.shortcutRotate} � {t.shortcutConvert}
                             </small>
                         </div>
                     </>
@@ -244,7 +221,10 @@ export function Home({ theme, lang, onToggleTheme, onToggleLang }: HomeProps) {
                         <div className="settings-row">
                             <label>
                                 <span>{t.pageSize}</span>
-                                <select value={options.pageSize} onChange={e => setOptions({ ...options, pageSize: e.target.value as any })}>
+                                <select
+                                    value={options.pageSize}
+                                    onChange={e => setOptions({ ...options, pageSize: e.target.value as any })}
+                                >
                                     <option value="a4">{t.format.a4}</option>
                                     <option value="letter">{t.format.letter}</option>
                                     <option value="auto">{t.format.auto}</option>
@@ -252,21 +232,33 @@ export function Home({ theme, lang, onToggleTheme, onToggleLang }: HomeProps) {
                             </label>
                             <label>
                                 <span>{t.orientation}</span>
-                                <select value={options.orientation} onChange={e => setOptions({ ...options, orientation: e.target.value as any })} disabled={options.pageSize === 'auto'}>
+                                <select
+                                    value={options.orientation}
+                                    onChange={e => setOptions({ ...options, orientation: e.target.value as any })}
+                                    disabled={options.pageSize === 'auto'}
+                                >
                                     <option value="portrait">{t.orient.portrait}</option>
                                     <option value="landscape">{t.orient.landscape}</option>
                                 </select>
                             </label>
                             <label>
                                 <span>{t.margins}</span>
-                                <select value={options.margin} onChange={e => setOptions({ ...options, margin: e.target.value as any })} disabled={options.pageSize === 'auto'}>
+                                <select
+                                    value={options.margin}
+                                    onChange={e => setOptions({ ...options, margin: e.target.value as any })}
+                                    disabled={options.pageSize === 'auto'}
+                                >
                                     <option value="none">{t.margin.none}</option>
                                     <option value="small">{t.margin.small}</option>
                                     <option value="normal">{t.margin.normal}</option>
                                 </select>
                             </label>
                             <label className="checkbox-label">
-                                <input type="checkbox" checked={options.autoCrop} onChange={e => setOptions({ ...options, autoCrop: e.target.checked })} />
+                                <input
+                                    type="checkbox"
+                                    checked={options.autoCrop}
+                                    onChange={e => setOptions({ ...options, autoCrop: e.target.checked })}
+                                />
                                 <span>{t.autoCrop}</span>
                             </label>
                         </div>
@@ -280,12 +272,23 @@ export function Home({ theme, lang, onToggleTheme, onToggleLang }: HomeProps) {
                                     <span>{t.quality}</span>
                                     <span className="value-tag">{quality}%</span>
                                 </div>
-                                <input type="range" min={10} max={100} value={quality} onChange={(e) => setQuality(Number(e.target.value))} />
+                                <input
+                                    type="range"
+                                    min={10}
+                                    max={100}
+                                    value={quality}
+                                    onChange={(e) => setQuality(Number(e.target.value))}
+                                />
                             </label>
                             <label>
                                 <span>{t.filename}</span>
                                 <div className="filename-input">
-                                    <input type="text" value={filename} onChange={(e) => setFilename(e.target.value)} placeholder="compressed" />
+                                    <input
+                                        type="text"
+                                        value={filename}
+                                        onChange={(e) => setFilename(e.target.value)}
+                                        placeholder="compressed"
+                                    />
                                     <span className="ext">.pdf</span>
                                 </div>
                             </label>
@@ -294,12 +297,13 @@ export function Home({ theme, lang, onToggleTheme, onToggleLang }: HomeProps) {
                 </div>
 
                 {convertError && <div className="convert-error">{convertError}</div>}
-                
-                {progress !== null ? (
+
+                {isConverting ? (
                     <div className="progress-container">
-                        <div className="progress-bar" style={{ width: `${progress}%` }}>
+                        <div className="progress-bar" style={{ width: `${progress || 0}%` }}>
                             <span className="progress-text">{progress}%</span>
                         </div>
+                        <p className="loading-text">Processing...</p>
                     </div>
                 ) : (
                     <button className="convert-btn" onClick={handleConvert} disabled={!items.length}>
@@ -308,8 +312,8 @@ export function Home({ theme, lang, onToggleTheme, onToggleLang }: HomeProps) {
                 )}
             </div>
 
-            <footer style={{ marginTop: '3rem', textAlign: 'center', color: 'var(--color-text-dim)', fontSize: '0.9rem' }}>
-                <p>© 2025 Shoxrux Industries</p>
+            <footer>
+                <p>� 2025 Shoxrux Industries</p>
             </footer>
         </>
     )

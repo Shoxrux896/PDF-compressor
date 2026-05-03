@@ -23,6 +23,8 @@ export const translations = {
         shortcuts: "Keyboard Shortcuts",
         shortcutDelete: "Press Delete or Backspace to remove selected image",
         shortcutRotate: "Press R to rotate image",
+        selected: "выбрано", // "selected"
+clear: "Снять выделение", // "Clear"
         shortcutConvert: "Press Ctrl+Enter to convert to PDF",
         format: {
             a4: "A4",
@@ -62,6 +64,12 @@ export const translations = {
         shortcuts: "Горячие клавиши",
         shortcutDelete: "Нажмите Delete или Backspace для удаления",
         shortcutRotate: "Нажмите R для поворота",
+      
+   
+    selected: "выбрано",
+    clear: "Снять выделение",
+    
+
         shortcutConvert: "Нажмите Ctrl+Enter для создания PDF",
         format: {
             a4: "A4",
@@ -116,6 +124,8 @@ export const translations = {
             small: "Kichik",
             normal: "O'rtacha"
         },
-        autoCrop: "Oq chegaralarni avto-kesish"
+        autoCrop: "Oq chegaralarni avto-kesish",
+        selected: "Tanlangan",
+        clear: "Tanlovni bekor qilish"
     }
 }
